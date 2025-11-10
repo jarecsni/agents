@@ -31,6 +31,128 @@ The Autonomous Deep Research System transforms the existing linear research pipe
 └───────┘ └───────────┘ └─────────┘
 ```
 
+### Interaction Flow
+
+The following sequence diagram illustrates a typical autonomous research session with clarification, evaluation loops, and trail following:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant RC as Research Coordinator
+    participant CE as Clarification Engine
+    participant PA as Planner Agent
+    participant SA as Search Agent
+    participant EE as Evaluation Engine
+    participant TM as Trail Manager
+    participant WA as Writer Agent
+
+    User->>RC: conduct_research(query, budget)
+    RC->>CE: analyze_query(query)
+    CE->>RC: ambiguities_detected
+    RC->>User: request_clarification(questions)
+    User->>RC: provide_clarifications(answers)
+    
+    RC->>PA: create_research_plan(query, clarifications)
+    PA->>RC: research_plan
+    
+    loop For each search task
+        RC->>SA: execute_search(task, budget)
+        SA->>RC: search_results
+        RC->>EE: assess_quality(results)
+        EE->>RC: quality_score, gaps
+        
+        alt Quality insufficient
+            RC->>TM: identify_trails(gaps, budget)
+            TM->>RC: priority_trails
+            
+            loop For each trail (parallel)
+                RC->>SA: follow_trail(trail, sub_budget)
+                SA->>RC: trail_findings
+                RC->>EE: assess_quality(trail_findings)
+                EE->>RC: updated_quality_score
+            end
+        end
+    end
+    
+    RC->>EE: validate_completeness(all_findings)
+    EE->>RC: validation_result
+    
+    alt Validation passed
+        RC->>WA: synthesize_report(findings, context)
+        WA->>RC: final_report
+        RC->>User: research_complete(report)
+    else Validation failed
+        RC->>User: research_incomplete(partial_report, gaps)
+    end
+```
+
+### Agent Collaboration Flow
+
+This diagram shows how agents can invoke each other as tools through the Agent Registry:
+
+```mermaid
+sequenceDiagram
+    participant PA as Planner Agent
+    participant AR as Agent Registry
+    participant SA as Search Agent
+    participant WA as Writer Agent
+    participant RC as Research Coordinator
+
+    PA->>AR: get_available_agents()
+    AR->>PA: [search_agent, writer_agent, ...]
+    
+    Note over PA: Planner decides to use<br/>Search Agent as tool
+    
+    PA->>AR: invoke_agent_tool("search_agent", search_params)
+    AR->>SA: execute_search(search_params)
+    SA->>AR: search_results
+    AR->>PA: tool_result(search_results)
+    
+    Note over PA: Planner analyzes results<br/>and decides next step
+    
+    PA->>AR: invoke_agent_tool("writer_agent", synthesis_params)
+    AR->>WA: synthesize_section(synthesis_params)
+    WA->>AR: section_draft
+    AR->>PA: tool_result(section_draft)
+    
+    PA->>RC: handoff_to_coordinator(complete_plan)
+```
+
+### Budget Management Flow
+
+This diagram illustrates how budget is tracked and enforced across the system:
+
+```mermaid
+sequenceDiagram
+    participant RC as Research Coordinator
+    participant BM as Budget Manager
+    participant Agent as Any Agent
+    participant EE as Evaluation Engine
+
+    RC->>BM: initialize_budget(max_tokens, max_time, max_calls)
+    BM->>RC: budget_created
+    
+    loop Research Operations
+        RC->>BM: can_afford(operation)
+        
+        alt Budget available
+            BM->>RC: true
+            RC->>Agent: execute_operation()
+            Agent->>RC: result, usage_metrics
+            RC->>BM: consume(usage_metrics)
+            BM->>RC: updated_budget
+        else Budget exhausted
+            BM->>RC: false
+            RC->>EE: evaluate_partial_results()
+            EE->>RC: quality_assessment
+            RC->>RC: graceful_degradation()
+        end
+    end
+    
+    RC->>BM: get_final_usage()
+    BM->>RC: usage_report
+```
+
 ### Core Components
 
 #### Research Coordinator
