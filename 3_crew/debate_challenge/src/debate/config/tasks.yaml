@@ -26,4 +26,7 @@ decide:
   expected_output: >
     Your decision on which side is more convincing, and why.
   agent: judge
+  context:
+    - propose
+    - oppose
   output_file: output/decide.md

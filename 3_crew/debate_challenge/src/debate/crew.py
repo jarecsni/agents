@@ -47,7 +47,6 @@ class Debate():
     def decide(self) -> Task:
         return Task(
             config=self.tasks_config['decide'],
-            context=[self.propose(), self.oppose()],
         )
 
 
